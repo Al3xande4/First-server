@@ -1,35 +1,80 @@
-interface User{
-    name: string,
-    password: string
+class User{
+    name: string;
+    password: string;
+    id: number;
+
+    constructor(name: string, password: string, id: number){
+        this.name = name;
+        this.id = id;
+        this.password = password;
+    };
+
+    chechPassword(compareUser: User){
+        return this.password == compareUser.password;
+    }
 };
 
-let users: User[] = [];
-
-const addUser = (user: User) => {
-    users.push(user);
+enum Comparisons{
+    name,
+    id
 };
 
-const getUsers = (): User[] => {
-    return users;
-};
+interface Storage{
+    add(user: User): void;
+    findBy(key: Comparisons, value: any): User | undefined;
+    check(user: User, compareUser: User): Boolean;
+    isValid(user: User): Boolean;
+}
 
-const checkPassword = (user: User, realUser: User): Boolean => {
-    return user.password == realUser.password;
-};
+class UsersStorage implements Storage{
 
-const getUserWithName = (name: string): User | undefined => {
-    let user: User | undefined = undefined;
-    users.forEach((it) => {
-        if(it.name == name) {
-            user = it;
+    private _users: User[] = [];
+
+    get users(){
+        return this._users;
+    };
+
+    add(user: User): void {
+        this._users.push(user);        
+    };
+
+
+    findBy(key: Comparisons, value: any): User | undefined {
+        let user: User | undefined
+        switch(key){
+            case Comparisons.name: {
+                this._users.forEach((it) => {
+                    if(it.name == value) {
+                        user = it;
+                        return it;
+                    };
+                });
+                break;
+            }
+            case Comparisons.id: {
+                this._users.forEach((it) => {
+                    if(it.id == value) {
+                        user = it;
+                        return it;
+                    };
+                });
+                break;
+            };
         };
-    });
-    return user;
-};
+        return user;
+    };
 
-const isValid = (user: User): Boolean => {
-    const isValid = getUserWithName(user.name);
-    return !Boolean(isValid);
-};
 
-export { addUser, getUsers, getUserWithName, checkPassword, User, isValid }
+    check(user: User, compareUser: User): Boolean {
+        return user.password == compareUser.password;
+    };
+
+    isValid(user: User): Boolean {
+        const isValid = this.findBy(Comparisons.name, user.name);
+        return !Boolean(isValid);
+    };
+    
+
+}
+
+export { User, UsersStorage, Comparisons }
