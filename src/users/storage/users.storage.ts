@@ -1,46 +1,43 @@
-import { ILogger } from "../../logger/logger.interface";
-import { Storage } from "./storage.interface";
-import { User } from "./user";
+import { inject, injectable } from 'inversify';
+import { ILogger } from '../../logger/logger.interface';
+import { TYPES } from '../../types';
+import { IUserStorage } from './storage.interface';
+import { User } from './user';
+import 'reflect-metadata';
 
-export class UsersStorage implements Storage{
+@injectable()
+export class UsersStorage implements IUserStorage {
+	private _users: User[];
 
-    logger: ILogger;
+	get users(): User[] {
+		return this._users;
+	}
 
-    private _users: User[];
+	constructor(@inject(TYPES.Logger) private logger: ILogger) {
+		this._users = [];
+	}
 
-    get users(){
-        return this._users;
-    };
+	find(name: string): User | undefined {
+		for (const user of this.users) {
+			if (user.name === name) {
+				this.logger.info('user was found');
+				return user;
+			}
+		}
 
-    constructor(logger: ILogger){
-        this._users = [];
-        this.logger = logger;
-    };
+		return undefined;
+	}
 
+	insert(user: User): void {
+		this._users.push(user);
+		this.logger.info('user created');
+	}
 
-    find(name: string){
-        for(const user of this.users) {
-            if(user.name === name) {
-                this.logger.info('user was found');
-                return user;
-            };
-        };
-        
+	valid(user: User): Boolean {
+		return !this.find(user.name);
+	}
 
-        return undefined;
-    };
-    
-    insert(user: User){
-        this._users.push(user);
-        this.logger.info('user created');
-    };
-
-    valid(user: User){
-        return !Boolean(this.find(user.name));
-    };
-
-    get(id: number){
-        return this._users[id];
-    };
-    
-};
+	get(id: number): User {
+		return this._users[id];
+	}
+}

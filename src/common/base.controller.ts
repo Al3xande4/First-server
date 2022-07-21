@@ -1,35 +1,37 @@
-import { Response, Router } from "express";
-import { ILogger } from "../logger/logger.interface";
-import { IControllerRoute } from "./route.interface";
+import { Response, Router } from 'express';
+import { injectable } from 'inversify';
+import { ILogger } from '../logger/logger.interface';
+import { ExpressReturnType, IControllerRoute } from './route.interface';
+import 'reflect-metadata';
 
-export abstract class BaseController{
-    logger: ILogger;
+@injectable()
+export abstract class BaseController {
+	logger: ILogger;
 
-    private readonly _router: Router;
+	private readonly _router: Router;
 
-    get router(){
-        return this._router;
-    };
+	get router(): Router {
+		return this._router;
+	}
 
-    constructor(logger: ILogger){
-        this._router = Router();
-        this.logger = logger;
-    };
+	constructor(logger: ILogger) {
+		this._router = Router();
+		this.logger = logger;
+	}
 
-    bindRoutes(routes: IControllerRoute[]){
-        for(const route of routes) {
-            this.logger.info(`[${route.method}]: ${route.path}`);
-            const handler = route.func.bind(this);
-            this.router[route.method](route.path, handler);
-        };
-    };
+	bindRoutes(routes: IControllerRoute[]): void {
+		for (const route of routes) {
+			this.logger.info(`[${route.method}]: ${route.path}`);
+			const handler = route.func.bind(this);
+			this.router[route.method](route.path, handler);
+		}
+	}
 
-    public send<T>(res: Response, message: T, statusCode: number) {
-        res.status(statusCode).send(message);
-    };
+	public send<T>(res: Response, message: T, statusCode: number): ExpressReturnType {
+		return res.status(statusCode).send(message);
+	}
 
-    public ok<T>(res: Response, message: T) {
-        this.send<T>(res, message, 200);
-    };
-
-};
+	public ok<T>(res: Response, message: T): ExpressReturnType {
+		return this.send<T>(res, message, 200);
+	}
+}
