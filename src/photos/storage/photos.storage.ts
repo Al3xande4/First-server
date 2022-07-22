@@ -1,52 +1,36 @@
 import { ILogger } from '../../logger/logger.interface';
-import { Photo } from './photo';
-import { IPhotoStorage, IValidMessage } from './storage.interface';
+import { StoragePhoto } from './photo';
+import { IPhotoStorage } from './storage.interface';
 import 'reflect-metadata';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 
 @injectable()
 export class PhotosStorage implements IPhotoStorage {
-	private _photos: Photo[];
+	private _photos: StoragePhoto[];
 
 	constructor(@inject(TYPES.Logger) private logger: ILogger) {
 		this._photos = [];
 	}
 
-	get photos(): Photo[] {
+	get photos(): StoragePhoto[] {
 		return this._photos;
 	}
 
-	get(id: number): Photo | undefined {
+	get(id: number): StoragePhoto | null {
 		for (const photo of this._photos) {
 			if (photo.id == id) {
 				return photo;
 			}
 		}
-		return undefined;
+		return null;
 	}
 
-	insert(photo: Photo): void {
+	insert(photo: StoragePhoto): void {
 		this._photos.push(photo);
 	}
 
-	valid(photo: Photo): IValidMessage {
-		if (!photo.id) {
-			return { isValid: false, message: 'Photo must have an id' };
-		}
-
-		if (!photo.url) {
-			return { isValid: false, message: 'Photo must have an url' };
-		}
-
-		if (this.get(photo.id)) {
-			return { isValid: false, message: 'Photo already exists' };
-		}
-
-		if (!photo.possition) {
-			return { isValid: false, message: 'Photo must have a possition' };
-		}
-
-		return { isValid: true, message: 'Photo successfully created' };
+	valid(photo: StoragePhoto): boolean {
+		return !Boolean(this.get(photo.id));
 	}
 }

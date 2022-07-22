@@ -1,9 +1,9 @@
-import { User } from './user';
+import { StorageUser } from './user';
 
 export interface IUserStorage {
-	find: (name: string) => User | undefined;
-	insert: (user: User) => void;
-	valid: (user: User) => Boolean;
-	get users(): User[];
-	get: (id: number) => User | undefined;
+	find: (email: string) => StorageUser | null;
+	insert: (user: StorageUser) => void;
+	valid: (user: StorageUser) => Boolean;
+	get users(): StorageUser[];
+	get: (id: number) => StorageUser | null;
 }

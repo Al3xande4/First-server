@@ -13,6 +13,18 @@ import { IExeptionFilter } from './errors/exeption.filter.interface';
 import { IPhotoStorage } from './photos/storage/storage.interface';
 import { IUserStorage } from './users/storage/storage.interface';
 import 'reflect-metadata';
+import { IUserService } from './users/user.service.interface';
+import { UserService } from './users/user.service';
+import { IUserStorageService } from './users/storage.service.interface';
+import { UserStorageService } from './users/storage.service';
+import { ITokenService } from './users/token.service.interface';
+import { TokenService } from './users/token.service';
+import { IUserController } from './users/users.controller.interface';
+import { IPhotoController } from './photos/photos.controller.interface';
+import { IPhotoStorageService } from './photos/storage.service.interface';
+import { PhotoStorageService } from './photos/storage.service';
+import { IPhotoService } from './photos/photo.service.interface';
+import { PhotoService } from './photos/photo.service';
 
 export interface IBootstrapReturn {
 	appContainer: Container;
@@ -23,10 +35,15 @@ const appBindings = new ContainerModule((bind: interfaces.Bind) => {
 	bind<App>(TYPES.Application).to(App);
 	bind<ILogger>(TYPES.Logger).to(LoggerService);
 	bind<IExeptionFilter>(TYPES.ExeptionFilter).to(ExeptionFilter);
-	bind<UsersController>(TYPES.UserController).to(UsersController);
-	bind<PhotosController>(TYPES.PhotoController).to(PhotosController);
+	bind<IUserController>(TYPES.UserController).to(UsersController);
+	bind<IPhotoController>(TYPES.PhotoController).to(PhotosController);
 	bind<IUserStorage>(TYPES.UserStorage).to(UsersStorage);
 	bind<IPhotoStorage>(TYPES.PhotoStorage).to(PhotosStorage);
+	bind<IUserService>(TYPES.UserService).to(UserService);
+	bind<IUserStorageService>(TYPES.UserStorageService).to(UserStorageService);
+	bind<ITokenService>(TYPES.TokenService).to(TokenService);
+	bind<IPhotoStorageService>(TYPES.PhotoStorageService).to(PhotoStorageService);
+	bind<IPhotoService>(TYPES.PhotoService).to(PhotoService);
 });
 
 function bootstrap(): IBootstrapReturn {

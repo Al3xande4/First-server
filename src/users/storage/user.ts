@@ -1,18 +1,21 @@
-export class User {
-	name: string;
-	email?: string;
+export class StorageUser {
+	constructor(
+		private readonly _email: string,
+		private readonly _name: string,
+		private readonly _password: string,
+	) {}
 
-	private readonly _password: string;
 	get password(): string {
 		return this._password;
 	}
 
-	id?: number;
-
-	constructor(name: string, password: string, email?: string, id?: number) {
-		this.name = name;
-		this._password = password;
-		this.email = email;
-		this.id = id;
+	get email(): string {
+		return this._email;
 	}
+
+	get name(): string {
+		return this._name;
+	}
+
+	id?: number;
 }

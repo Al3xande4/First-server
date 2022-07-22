@@ -1,10 +1,10 @@
-import { Photo } from './photo';
+import { StoragePhoto } from './photo';
 
 export interface IPhotoStorage {
-	get photos(): Photo[];
-	get(id: number): Photo | undefined;
-	insert: (photo: Photo) => void;
-	valid: (photo: Photo) => IValidMessage;
+	get photos(): StoragePhoto[];
+	get(id: number): StoragePhoto | null;
+	insert: (photo: StoragePhoto) => void;
+	valid: (photo: StoragePhoto) => boolean;
 }
 
 export interface IValidMessage {

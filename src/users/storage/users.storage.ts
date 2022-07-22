@@ -2,14 +2,14 @@ import { inject, injectable } from 'inversify';
 import { ILogger } from '../../logger/logger.interface';
 import { TYPES } from '../../types';
 import { IUserStorage } from './storage.interface';
-import { User } from './user';
+import { StorageUser } from './user';
 import 'reflect-metadata';
 
 @injectable()
 export class UsersStorage implements IUserStorage {
-	private _users: User[];
+	private _users: StorageUser[];
 
-	get users(): User[] {
+	get users(): StorageUser[] {
 		return this._users;
 	}
 
@@ -17,27 +17,27 @@ export class UsersStorage implements IUserStorage {
 		this._users = [];
 	}
 
-	find(name: string): User | undefined {
+	find(email: string): StorageUser | null {
 		for (const user of this.users) {
-			if (user.name === name) {
+			if (user.email === email) {
 				this.logger.info('user was found');
 				return user;
 			}
 		}
 
-		return undefined;
+		return null;
 	}
 
-	insert(user: User): void {
+	insert(user: StorageUser): void {
 		this._users.push(user);
 		this.logger.info('user created');
 	}
 
-	valid(user: User): Boolean {
-		return !this.find(user.name);
+	valid(user: StorageUser): Boolean {
+		return !this.find(user.email);
 	}
 
-	get(id: number): User {
+	get(id: number): StorageUser {
 		return this._users[id];
 	}
 }

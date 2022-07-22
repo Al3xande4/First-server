@@ -1,13 +1,14 @@
-import { User } from '../../users/storage/user';
+import { IsNotEmpty } from 'class-validator';
+import { StorageUser } from '../../users/storage/user';
 
-export class Photo {
+export class StoragePhoto {
 	url: string;
 	id: number;
-	owner?: User;
+	owner?: StorageUser;
 	possition: IPossition;
 }
 
-interface IPossition {
+export interface IPossition {
 	location: ILocation;
 	rotation: IRotation;
 	direction: number;

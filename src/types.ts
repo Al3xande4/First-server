@@ -6,4 +6,9 @@ export const TYPES = {
 	PhotoController: Symbol.for('PhotoController'),
 	UserStorage: Symbol.for('UserStorage'),
 	PhotoStorage: Symbol.for('PhotoStorage'),
+	UserService: Symbol.for('UserService'),
+	UserStorageService: Symbol.for('UserStorageService'),
+	TokenService: Symbol.for('TokenService'),
+	PhotoService: Symbol.for('PhotoService'),
+	PhotoStorageService: Symbol.for('PhotoStorageService'),
 };

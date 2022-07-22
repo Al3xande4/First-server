@@ -7,94 +7,108 @@ import jwt from 'jsonwebtoken';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../types';
 import 'reflect-metadata';
+import { IUserService } from './user.service.interface';
+import { UserRegisterDto } from './dto/user-register.dto';
+import { UserLoginDto } from './dto/user-login.dto';
+import { AuthecateMiddleware } from '../common/authecate.middleware';
+import { ValidateMiddleware } from '../common/validate.middleware';
+import { IUserStorageService } from './storage.service.interface';
+import { ITokenService } from './token.service.interface';
+import { IUserController } from './users.controller.interface';
 
 @injectable()
-export class UsersController extends BaseController {
+export class UsersController extends BaseController implements IUserController {
 	constructor(
 		@inject(TYPES.Logger) private loggerService: ILogger,
 		@inject(TYPES.UserStorage) private storage: IUserStorage,
+		@inject(TYPES.UserService) private userService: IUserService,
+		@inject(TYPES.UserStorageService) private userStorageService: IUserStorageService,
+		@inject(TYPES.TokenService) private tokenService: ITokenService,
 	) {
 		super(loggerService);
 
 		this.bindRoutes([
-			{ path: '/register', method: 'post', func: this.register },
-			{ path: '/login', method: 'post', func: this.login },
-		]);
-		this.router.use(this.authecateToken);
-		this.bindRoutes([
-			{ path: '/', method: 'get', func: this.users },
-			{ path: '/secret', method: 'get', func: this.secret },
+			{
+				path: '/register',
+				method: 'post',
+				func: this.register,
+				middlewares: [new ValidateMiddleware(UserRegisterDto)],
+			},
+			{
+				path: '/login',
+				method: 'post',
+				func: this.login,
+				middlewares: [new ValidateMiddleware(UserLoginDto)],
+			},
+			{
+				path: '/',
+				method: 'get',
+				func: this.users,
+				middlewares: [new AuthecateMiddleware()],
+			},
+			{
+				path: '/secret',
+				method: 'get',
+				func: this.secret,
+				middlewares: [new AuthecateMiddleware()],
+			},
 		]);
 	}
 
-	register(req: Request, res: Response, next: NextFunction): void {
-		const user = req.body.user;
-		if (!this.storage.valid(user)) {
-			next(new HttpExeption(`user with name ${user.name} already exists`, 400));
+	async register(
+		{ body }: Request<{}, {}, UserRegisterDto>,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const result = await this.userService.createUser(body);
+		if (!result) {
 			return;
-		} else {
-			this.storage.insert(user);
-			const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-			if (ACCESS_TOKEN != undefined) {
-				const token = jwt.sign(user.name, ACCESS_TOKEN);
-				this.ok(res, `You successfully registered as ${user.name}, your token ${token}`);
-			} else {
+		}
+		const success = this.userStorageService.insertUser(result);
+		if (!success) {
+			next(new HttpExeption(`User ${result.email} already exists`, 422));
+			return;
+		}
+		const token = this.tokenService.saveToken(result.email);
+		if (!token) {
+			this.logger.error('something went wrong');
+			next(new Error('wrong'));
+			return;
+		}
+		this.ok(res, `You successfully registered as ${result.name}, your token is ${token}`);
+	}
+
+	async login(
+		{ body }: Request<{}, {}, UserLoginDto>,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const user = this.userStorageService.findUser(body.email);
+		if (!user) {
+			next(new HttpExeption(`User with email ${body.email} doesn't exists`, 422));
+			return;
+		}
+		if (await this.userService.checkPassword(user.password, body.password)) {
+			this.tokenService.saveToken(user.email);
+			const token = this.tokenService.saveToken(user.email);
+			if (!token) {
 				this.logger.error('something went wrong');
 				next(new Error('wrong'));
+				return;
 			}
-		}
-	}
-
-	login(req: Request, res: Response, next: NextFunction): void {
-		const user = req.body.user;
-		const realUser = this.storage.find(user.name);
-		if (realUser) {
-			if (realUser.password === user.password) {
-				const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-				if (ACCESS_TOKEN != undefined) {
-					const token = jwt.sign(user.name, ACCESS_TOKEN);
-					this.ok(res, `You logged in as ${user.name}, your token ${token}`);
-				} else {
-					this.logger.error('something went wrong');
-					next(new Error('wrong'));
-				}
-			} else {
-				next(new HttpExeption('Wrong password', 400, 'register'));
-			}
+			this.ok(res, `You successfully registered as ${user.name}, your token is ${token}`);
 		} else {
-			next(new HttpExeption(`No such user with name ${user.name}`, 400, 'register'));
+			next(new HttpExeption('Wrong password', 400, 'register'));
 		}
 	}
 
 	users(req: Request, res: Response, next: NextFunction): void {
-		this.ok(res, this.storage.users);
+		this.ok(res, this.userStorageService.storage.users);
 		next();
 	}
 
-	secret(req: Request, res: Response, next: NextFunction): void {
-		this.ok(res, req.body.username);
+	secret({ body }: Request, res: Response, next: NextFunction): void {
+		this.ok(res, body.email);
 		next();
-	}
-
-	authecateToken(req: Request, res: Response, next: NextFunction): void {
-		const authHeader = req.headers['authorization'];
-		const token = authHeader && authHeader.split(' ')[1];
-
-		if (token == null) {
-			next(new HttpExeption('No token', 401));
-			return;
-		}
-
-		if (process.env.ACCESS_TOKEN != undefined) {
-			jwt.verify(token, process.env.ACCESS_TOKEN, (err, username) => {
-				if (err) {
-					next(new HttpExeption('Token is not valid', 403));
-				} else {
-					req.body.username = username;
-					next();
-					return;
-				}
-			});
-		}
 	}
 }
