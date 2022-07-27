@@ -6,70 +6,71 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '../types';
 import { IPhotoController } from './photos.controller.interface';
 import 'reflect-metadata';
-import { AuthecateMiddleware } from '../common/authecate.middleware';
+import { AuthMiddleware } from '../common/auth.middleware';
 import { ValidateMiddleware } from '../common/validate.middleware';
 import { PhotoCreateDto } from './dto/photo-create.dto';
 import { PhotoGetDto } from './dto/photo-get.dto';
 import { IPhotoService } from './photo.service.interface';
-import { IPhotoStorageService } from './storage.service.interface';
+import { IConfigService } from '../config/config.service.interface';
+import { AuthGuard } from '../common/auth.guard';
 
 @injectable()
 export class PhotosController extends BaseController implements IPhotoController {
 	constructor(
 		@inject(TYPES.Logger) private serviceLogger: ILogger,
 		@inject(TYPES.PhotoService) private photoService: IPhotoService,
-		@inject(TYPES.PhotoStorageService) private photoStorageService: IPhotoStorageService,
+		@inject(TYPES.ConfigService) private configService: IConfigService,
 	) {
 		super(serviceLogger);
-		this.router.use(new AuthecateMiddleware().execute);
 		this.bindRoutes([
 			{
 				path: '/',
 				method: 'get',
 				func: this.photos,
+				middlewares: [new AuthGuard()],
 			},
 			{
 				path: '/create',
 				method: 'post',
 				func: this.create,
-				middlewares: [new ValidateMiddleware(PhotoCreateDto)],
+				middlewares: [new ValidateMiddleware(PhotoCreateDto), new AuthGuard()],
 			},
 			{
 				path: '/get',
 				method: 'post',
 				func: this.get,
-				middlewares: [new ValidateMiddleware(PhotoGetDto)],
+				middlewares: [new ValidateMiddleware(PhotoGetDto), new AuthGuard()],
 			},
 		]);
 	}
 
-	photos(req: Request, res: Response, next: NextFunction): void {
-		this.ok(res, this.photoStorageService.storage.photos);
-		next();
+	async photos(req: Request, res: Response, next: NextFunction): Promise<void> {
+		this.ok(res, { photos: await this.photoService.getPhotos() });
 	}
 
-	create({ body }: Request<{}, {}, PhotoCreateDto>, res: Response, next: NextFunction): void {
-		const resutl = this.photoService.createPhoto(body);
+	async create(
+		{ body }: Request<{}, {}, PhotoCreateDto>,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const resutl = await this.photoService.createPhoto(body);
 		if (!resutl) {
 			next(new HttpExeption('', 422));
 			return;
 		}
-		const success = this.photoStorageService.insertPhoto(resutl);
-		if (!success) {
-			next(new HttpExeption('Coulndnt create the photo', 422));
-			return;
-		}
-		this.ok(res, 'Photo created');
-		next();
+
+		this.ok(res, { photo: resutl });
 	}
 
-	get({ body }: Request<{}, {}, PhotoGetDto>, res: Response, next: NextFunction): void {
-		const photo = this.photoStorageService.findPhoto(body.id);
-		if (!photo) {
-			next(new HttpExeption(`Photot with id ${body} doesn't exist`, 422));
-			return;
+	async get(
+		{ body }: Request<{}, {}, PhotoGetDto>,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const result = await this.photoService.getPhoto(body);
+		if (!result) {
+			return next(new HttpExeption("Photo doesn't exits", 422));
 		}
-		res.json(photo);
-		next();
+		this.ok(res, { photo: result });
 	}
 }

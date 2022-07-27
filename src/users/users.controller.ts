@@ -2,28 +2,25 @@ import { NextFunction, Request, Response } from 'express';
 import { BaseController } from '../common/base.controller';
 import { HttpExeption } from '../errors/http-error';
 import { ILogger } from '../logger/logger.interface';
-import { IUserStorage } from './storage/storage.interface';
-import jwt from 'jsonwebtoken';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../types';
 import 'reflect-metadata';
 import { IUserService } from './user.service.interface';
 import { UserRegisterDto } from './dto/user-register.dto';
 import { UserLoginDto } from './dto/user-login.dto';
-import { AuthecateMiddleware } from '../common/authecate.middleware';
+import { AuthMiddleware } from '../common/auth.middleware';
 import { ValidateMiddleware } from '../common/validate.middleware';
-import { IUserStorageService } from './storage.service.interface';
-import { ITokenService } from './token.service.interface';
 import { IUserController } from './users.controller.interface';
+import { IConfigService } from '../config/config.service.interface';
+import { sign } from 'jsonwebtoken';
+import { AuthGuard } from '../common/auth.guard';
 
 @injectable()
 export class UsersController extends BaseController implements IUserController {
 	constructor(
 		@inject(TYPES.Logger) private loggerService: ILogger,
-		@inject(TYPES.UserStorage) private storage: IUserStorage,
 		@inject(TYPES.UserService) private userService: IUserService,
-		@inject(TYPES.UserStorageService) private userStorageService: IUserStorageService,
-		@inject(TYPES.TokenService) private tokenService: ITokenService,
+		@inject(TYPES.ConfigService) private configService: IConfigService,
 	) {
 		super(loggerService);
 
@@ -44,13 +41,13 @@ export class UsersController extends BaseController implements IUserController {
 				path: '/',
 				method: 'get',
 				func: this.users,
-				middlewares: [new AuthecateMiddleware()],
+				middlewares: [new AuthGuard()],
 			},
 			{
 				path: '/secret',
 				method: 'get',
 				func: this.secret,
-				middlewares: [new AuthecateMiddleware()],
+				middlewares: [new AuthGuard()],
 			},
 		]);
 	}
@@ -62,20 +59,11 @@ export class UsersController extends BaseController implements IUserController {
 	): Promise<void> {
 		const result = await this.userService.createUser(body);
 		if (!result) {
-			return;
+			return next(new HttpExeption('User already exists error', 422));
 		}
-		const success = this.userStorageService.insertUser(result);
-		if (!success) {
-			next(new HttpExeption(`User ${result.email} already exists`, 422));
-			return;
-		}
-		const token = this.tokenService.saveToken(result.email);
-		if (!token) {
-			this.logger.error('something went wrong');
-			next(new Error('wrong'));
-			return;
-		}
-		this.ok(res, `You successfully registered as ${result.name}, your token is ${token}`);
+
+		const token = await this.signJWT(body.email, this.configService.get('ACCESS_TOKEN'));
+		this.ok(res, { user: result, jwt: token });
 	}
 
 	async login(
@@ -83,32 +71,38 @@ export class UsersController extends BaseController implements IUserController {
 		res: Response,
 		next: NextFunction,
 	): Promise<void> {
-		const user = this.userStorageService.findUser(body.email);
-		if (!user) {
-			next(new HttpExeption(`User with email ${body.email} doesn't exists`, 422));
-			return;
+		const result = await this.userService.validateUser(body);
+		if (!result) {
+			return next(new HttpExeption('Auth error', 422));
 		}
-		if (await this.userService.checkPassword(user.password, body.password)) {
-			this.tokenService.saveToken(user.email);
-			const token = this.tokenService.saveToken(user.email);
-			if (!token) {
-				this.logger.error('something went wrong');
-				next(new Error('wrong'));
-				return;
-			}
-			this.ok(res, `You successfully registered as ${user.name}, your token is ${token}`);
-		} else {
-			next(new HttpExeption('Wrong password', 400, 'register'));
-		}
+		const token = await this.signJWT(body.email, this.configService.get('ACCESS_TOKEN'));
+		this.ok(res, { user: result, jwt: token });
 	}
 
-	users(req: Request, res: Response, next: NextFunction): void {
-		this.ok(res, this.userStorageService.storage.users);
-		next();
+	async users(req: Request, res: Response, next: NextFunction): Promise<void> {
+		this.ok(res, { users: await this.userService.getUsers() });
 	}
 
 	secret({ body }: Request, res: Response, next: NextFunction): void {
 		this.ok(res, body.email);
 		next();
+	}
+
+	private signJWT(email: string, secret: string): Promise<string> {
+		return new Promise((resolve, reject) => {
+			sign(
+				{ email, iat: Math.floor(Date.now() / 1000) },
+				secret,
+				{
+					algorithm: 'HS256',
+				},
+				(err, token) => {
+					if (err) {
+						reject(err);
+					}
+					resolve(token as string);
+				},
+			);
+		});
 	}
 }
