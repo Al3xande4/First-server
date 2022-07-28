@@ -63,7 +63,7 @@ export class UsersController extends BaseController implements IUserController {
 		}
 
 		const token = await this.signJWT(body.email, this.configService.get('ACCESS_TOKEN'));
-		this.ok(res, { user: result, jwt: token });
+		this.ok(res, { jwt: token });
 	}
 
 	async login(
@@ -73,10 +73,10 @@ export class UsersController extends BaseController implements IUserController {
 	): Promise<void> {
 		const result = await this.userService.validateUser(body);
 		if (!result) {
-			return next(new HttpExeption('Auth error', 422));
+			return next(new HttpExeption('Auth error', 401));
 		}
 		const token = await this.signJWT(body.email, this.configService.get('ACCESS_TOKEN'));
-		this.ok(res, { user: result, jwt: token });
+		this.ok(res, { jwt: token });
 	}
 
 	async users(req: Request, res: Response, next: NextFunction): Promise<void> {

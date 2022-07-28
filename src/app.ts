@@ -53,4 +53,8 @@ export class App {
 		this.server = this.app.listen(this.port);
 		this.logger.info('server is listening');
 	}
+
+	public close(): void {
+		this.server.close();
+	}
 }

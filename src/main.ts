@@ -51,4 +51,4 @@ function bootstrap(): IBootstrapReturn {
 	return { app, appContainer };
 }
 
-export const { app, appContainer } = bootstrap();
+export const boot = bootstrap();
